@@ -2,6 +2,7 @@ import glob
 import os
 
 import numpy
+import tqdm
 from elftools.elf.elffile import ELFFile
 from torch.utils import data
 
@@ -12,7 +13,7 @@ FILE_END = 257
 class FunctionIdentificationDataset(data.Dataset):
     def __init__(self, root_directory, block_size, padding_size):
         self._padding_size = padding_size
-        data, labels = self._generate_data(root_directory)
+        data, labels = self._preprocess_data(root_directory)
         self._data_blocks, self._labels_blocks = self._split_to_blocks(data, labels, block_size)
 
     def __len__(self):
@@ -21,11 +22,11 @@ class FunctionIdentificationDataset(data.Dataset):
     def __getitem__(self, idx):
         return self._data_blocks[idx], self._labels_blocks[idx]
 
-    def _generate_data(self, root_directory):
+    def _preprocess_data(self, root_directory):
         files_data = []
         files_labels = []
-        for binary_path in glob.glob(os.path.join(root_directory, "*", "binary", "*")):
-            print(binary_path)
+        binaries_path = glob.glob(os.path.join(root_directory, "*", "binary", "*"))
+        for binary_path in tqdm.tqdm(binaries_path):
             with open(binary_path, "rb") as binary_file:
                 binary_elf = ELFFile(binary_file)
                 data = numpy.array(list(binary_elf.get_section_by_name(".text").data()), dtype=int)

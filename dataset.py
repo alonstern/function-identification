@@ -13,49 +13,63 @@ FILE_END = 257
 class FunctionIdentificationDataset(data.Dataset):
     def __init__(self, root_directory, block_size, padding_size):
         self._padding_size = padding_size
-        data, labels = self._preprocess_data(root_directory)
-        self._data_blocks, self._labels_blocks = self._split_to_blocks(data, labels, block_size)
+        data, tags = self._preprocess_data(root_directory)
+        self._data_blocks, self._tags_blocks = self._split_to_blocks(data, tags, block_size)
 
     def __len__(self):
         return len(self._data_blocks)
 
     def __getitem__(self, idx):
-        return self._data_blocks[idx], self._labels_blocks[idx]
+        return self._data_blocks[idx], self._tags_blocks[idx]
 
     def _preprocess_data(self, root_directory):
         files_data = []
-        files_labels = []
+        files_tags = []
+        # Iterator for every binary in the dataset
         binaries_path = glob.glob(os.path.join(root_directory, "*", "binary", "*"))
         for binary_path in tqdm.tqdm(binaries_path):
             with open(binary_path, "rb") as binary_file:
                 binary_elf = ELFFile(binary_file)
-                data = numpy.array(list(binary_elf.get_section_by_name(".text").data()), dtype=int)
-                labels = self._generate_lables(binary_elf)
+
+                # Extract the code from the binary.
+                data = self._generate_data(binary_elf)
+
+                # Extract the tags of each byte in the binary code (1 if it is a start of a function, 0 otherwise).
+                tags = self._generate_tags(binary_elf)
+
                 files_data.append(data)
-                files_labels.append(labels)
-        return files_data, files_labels
+                files_tags.append(tags)
+        return files_data, files_tags
 
-    def _generate_lables(self, binary_elf):
+    def _generate_data(self, binary_elf: ELFFile):
+        return numpy.array(list(binary_elf.get_section_by_name(".text").data()), dtype=int)
+
+    def _generate_tags(self, binary_elf: ELFFile):
         text_section = binary_elf.get_section_by_name(".text")
-        labels = numpy.zeros(text_section.data_size, dtype=int)
+        tags = numpy.zeros(text_section.data_size, dtype=int)
 
-        symbol_starts = [symbol[0] - text_section["sh_addr"] for symbol in self._get_function_addresses(binary_elf)]
-        labels[symbol_starts] = 1
-        return labels
+        # text_section["sh_addr"] is the address of the .text section.
+        # We need the addresses of the sumbols to be relative to the .text section so we subtract sh_addr from them.
+        function_addresses = [function_address - text_section["sh_addr"] for function_address in self._get_function_addresses(binary_elf)]
+        tags[function_addresses] = 1
+        return tags
 
     @staticmethod
     def _get_function_addresses(binary_elf):
         symbol_table = binary_elf.get_section_by_name(".symtab")
-        return [(symbol["st_value"], symbol["st_size"]) for symbol in symbol_table.iter_symbols() if
-                symbol["st_info"]["type"] == "STT_FUNC" and symbol["st_size"] != 0]
 
-    def _split_to_blocks(self, data, labels, block_size):
+        # st_value is the address of the symbol in the binary.
+        # There are more types of symbol than function so we make sure we only get the function symbols
+        return [symbol["st_value"] for symbol in symbol_table.iter_symbols()
+                if symbol["st_info"]["type"] == "STT_FUNC" and symbol["st_size"] != 0]
+
+    def _split_to_blocks(self, data, tags, block_size):
         data_blocks = []
-        labels_blocks = []
-        for file_data, file_labels in zip(data, labels):
+        tags_blocks = []
+        for file_data, file_tags in zip(data, tags):
             for start_index in range(0, len(file_data), block_size):
                 data_blocks.append(self._get_padded_data(file_data, start_index, block_size))
-                labels_blocks.append(file_labels[start_index: start_index + block_size])
+                tags_blocks.append(file_tags[start_index: start_index + block_size])
 
         return data_blocks, labels_blocks
 

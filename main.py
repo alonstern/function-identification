@@ -13,8 +13,6 @@ from torch.utils import data
 from dataset import FunctionIdentificationDataset
 from model import CNNModel
 
-torch.manual_seed(1)
-
 kernel_size = 20
 
 

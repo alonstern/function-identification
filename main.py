@@ -24,6 +24,7 @@ def main():
                                                       "(e.g ~/security.ece.cmu.edu/byteweight/elf_32")
     args = argument_parser.parse_args()
 
+    print("Preprocessing")
     dataset = FunctionIdentificationDataset(args.dataset_path, block_size=1000, padding_size=kernel_size - 1)
 
     train_size = int(len(dataset) * 0.9)
@@ -32,8 +33,10 @@ def main():
 
     model = CNNModel(embedding_dim=64, vocab_size=258, hidden_dim=16, tagset_size=2, kernel_size=kernel_size)
 
+    print("Training")
     train_model(model, train_dataset)
 
+    print("Testing")
     test_model(model, test_dataset)
 
 

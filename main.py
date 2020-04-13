@@ -1,6 +1,4 @@
 import argparse
-import datetime
-import sys
 
 import numpy
 import torch

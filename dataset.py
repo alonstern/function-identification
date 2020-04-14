@@ -46,7 +46,7 @@ class FunctionIdentificationDataset(data.Dataset):
         text_section = binary_elf.get_section_by_name(".text")
 
         # text_section["sh_addr"] is the address of the .text section.
-        # We need the addresses of the sumbols to be relative to the .text section so we subtract sh_addr from them.
+        # We need the addresses of the symbols to be relative to the .text section so we subtract sh_addr from them.
         function_addresses = [function_address - text_section["sh_addr"] for function_address in
                               self._get_function_addresses(binary_elf)]
 
@@ -77,7 +77,7 @@ class FunctionIdentificationDataset(data.Dataset):
         left_padding_number = int(padding_size / 2)
         right_padding_number = padding_size - left_padding_number
 
-        # If there is data availble before the block we will use it for padding. Otherwise we will use FILE_START.
+        # If there is data available before the block we will use it for padding. Otherwise we will use FILE_START.
         # Same for FILE_END.
         left_padding = numpy.array([FILE_START] * (left_padding_number - index), dtype=int)
         right_padding = numpy.array([FILE_END] * (right_padding_number - max(file_data.size - index - block_size, 0)), dtype=int)
